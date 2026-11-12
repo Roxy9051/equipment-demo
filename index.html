@@ -1,0 +1,559 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>设备管理系统 · 演示版</title>
+<style>
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  :root {
+    --brand: #d9480f;
+    --brand-light: #fff4ed;
+    --green: #2f9e44;
+    --green-bg: #ebfbee;
+    --red: #c92a2a;
+    --red-bg: #fff5f5;
+    --gray: #868e96;
+    --ink: #212529;
+    --line: #e9ecef;
+    --bg: #f2f3f5;
+  }
+  html, body { margin: 0; padding: 0; height: 100%; }
+  body {
+    font-family: system-ui, -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif;
+    background: #dde1e6;
+    color: var(--ink);
+    display: flex;
+    justify-content: center;
+  }
+  #app {
+    width: 100%;
+    max-width: 480px;
+    height: 100vh;
+    background: var(--bg);
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    overflow: hidden;
+  }
+
+  /* 顶栏 */
+  header {
+    background: #fff;
+    padding: 14px 16px 10px;
+    text-align: center;
+    position: relative;
+    flex: none;
+  }
+  header h1 { font-size: 17px; margin: 0; letter-spacing: 1px; }
+  header .demo-tag {
+    position: absolute; right: 12px; top: 14px;
+    font-size: 10px; color: var(--brand);
+    border: 1px solid var(--brand); border-radius: 4px;
+    padding: 2px 5px; background: #fff;
+  }
+
+  /* 分类栏 */
+  .cats {
+    display: flex; gap: 8px; overflow-x: auto;
+    padding: 10px 16px; background: #fff;
+    border-bottom: 1px solid var(--line);
+    flex: none;
+    scrollbar-width: none;
+  }
+  .cats::-webkit-scrollbar { display: none; }
+  .cat {
+    flex: none; padding: 6px 14px; border-radius: 16px;
+    font-size: 13px; color: #495057; background: #f1f3f5;
+    border: none; cursor: pointer;
+  }
+  .cat.active { background: var(--brand); color: #fff; }
+
+  /* 列表 */
+  main { flex: 1; overflow-y: auto; padding: 12px; -webkit-overflow-scrolling: touch; }
+  .empty { text-align: center; color: var(--gray); font-size: 13px; padding: 60px 20px; line-height: 2; }
+
+  .card {
+    background: #fff; border-radius: 10px;
+    padding: 14px 14px 14px 16px;
+    margin-bottom: 10px;
+    display: flex; align-items: center; gap: 10px;
+    box-shadow: 0 1px 3px rgba(0,0,0,.05);
+  }
+  .card.overdue { box-shadow: 0 0 0 1.5px var(--red); }
+  .card-main { flex: 1; min-width: 0; }
+  .row1 { display: flex; align-items: center; gap: 8px; }
+  .name { font-size: 15.5px; font-weight: 600; }
+  .desc {
+    font-size: 12px; color: #868e96; margin-top: 3px;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .meta { font-size: 12px; color: #adb5bd; margin-top: 4px; }
+  .meta b { color: #495057; font-weight: 500; }
+  .chip {
+    font-size: 10.5px; padding: 2px 7px; border-radius: 4px; flex: none;
+  }
+  .chip.in { color: var(--green); background: var(--green-bg); }
+  .chip.out { color: #1864ab; background: #e7f5ff; }
+  .chip.over { color: var(--red); background: var(--red-bg); }
+  .chip.ok { color: var(--brand); background: var(--brand-light); }
+
+  .btn {
+    flex: none; padding: 7px 16px; border-radius: 16px;
+    font-size: 13px; cursor: pointer;
+    border: 1px solid var(--brand); color: var(--brand);
+    background: #fff; font-family: inherit;
+  }
+  .btn:active { background: var(--brand-light); }
+  .btn.primary { background: var(--brand); color: #fff; }
+  .btn.ghost { border-color: #ced4da; color: #868e96; }
+  .btn.wide { width: 100%; border-radius: 8px; padding: 11px; font-size: 14.5px; }
+  .btn:disabled { opacity: .45; cursor: default; }
+
+  /* 底部 tab */
+  .tabbar {
+    flex: none; background: #fff; border-top: 1px solid var(--line);
+    display: flex; padding: 6px 0 calc(6px + env(safe-area-inset-bottom));
+  }
+  .tab {
+    flex: 1; text-align: center; cursor: pointer;
+    font-size: 10.5px; color: #adb5bd; padding: 2px 0;
+  }
+  .tab.active { color: var(--brand); }
+  .tab svg { display: block; margin: 0 auto 2px; }
+
+  /* 弹窗 */
+  .mask {
+    position: absolute; inset: 0; background: rgba(0,0,0,.45);
+    display: flex; align-items: flex-end; justify-content: center;
+    z-index: 20;
+  }
+  .mask.center { align-items: center; padding: 24px; }
+  .sheet {
+    width: 100%; background: #fff; border-radius: 16px 16px 0 0;
+    padding: 18px 18px calc(18px + env(safe-area-inset-bottom));
+    animation: up .18s ease-out;
+  }
+  .mask.center .sheet { border-radius: 14px; animation: pop .15s ease-out; }
+  @keyframes up { from { transform: translateY(30px); opacity: .6 } to { transform: none; opacity: 1 } }
+  @keyframes pop { from { transform: scale(.96); opacity: .6 } to { transform: none; opacity: 1 } }
+
+  .sheet h3 { margin: 0 0 2px; font-size: 16.5px; }
+  .sheet .sub { font-size: 12.5px; color: var(--gray); margin: 0 0 16px; }
+  .field { margin-bottom: 14px; }
+  .field label { display: block; font-size: 12.5px; color: #495057; margin-bottom: 6px; }
+  .field input {
+    width: 100%; padding: 10px 12px; border: 1px solid #dee2e6;
+    border-radius: 8px; font-size: 14.5px; font-family: inherit;
+    outline: none; background: #fff;
+  }
+  .field input:focus { border-color: var(--brand); }
+
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+  .pick {
+    padding: 8px 14px; border-radius: 8px; font-size: 13px;
+    border: 1px solid #dee2e6; background: #fff; color: #495057;
+    cursor: pointer; font-family: inherit;
+  }
+  .pick.sel { border-color: var(--brand); background: var(--brand-light); color: var(--brand); font-weight: 600; }
+  .pick.taken { background: #f1f3f5; color: #adb5bd; text-decoration: line-through; cursor: default; border-color: #f1f3f5; }
+
+  .sheet-actions { display: flex; gap: 10px; margin-top: 18px; }
+  .sheet-actions .btn { flex: 1; }
+
+  /* toast */
+  #toast {
+    position: absolute; left: 50%; top: 72px; transform: translateX(-50%);
+    background: rgba(33,37,41,.88); color: #fff; font-size: 13px;
+    padding: 9px 18px; border-radius: 20px;
+    opacity: 0; pointer-events: none; transition: opacity .22s;
+    z-index: 50; white-space: nowrap;
+  }
+  #toast.show { opacity: 1; }
+
+  /* 说明浮层 */
+  .intro-card { background: #fff; border-radius: 16px; padding: 24px 20px; max-width: 400px; }
+  .intro-card h2 { margin: 0 0 12px; font-size: 18px; color: var(--brand); }
+  .intro-card p { font-size: 13.5px; color: #495057; line-height: 1.7; margin: 0 0 10px; }
+  .intro-card .two { background: #f8f9fa; border-radius: 10px; padding: 12px 14px; margin: 12px 0 18px; }
+  .intro-card .two div { font-size: 12.8px; line-height: 1.75; color: #343a40; }
+  .intro-card .two b { color: var(--brand); }
+  .intro-card .btn { width: 100%; border-radius: 8px; padding: 11px; font-size: 14.5px; }
+
+  /* 我的页 */
+  .sec-title { font-size: 12.5px; color: var(--gray); margin: 16px 4px 8px; }
+  .sec-title:first-child { margin-top: 4px; }
+  .reset-wrap { padding: 26px 0 12px; text-align: center; }
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <h1>公司设备管理系统</h1>
+    <span class="demo-tag">演示版</span>
+  </header>
+
+  <div class="cats" id="cats"></div>
+
+  <main id="list"></main>
+
+  <nav class="tabbar" id="tabbar">
+    <div class="tab active" data-tab="home">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/></svg>
+      首页
+    </div>
+    <div class="tab" data-tab="mine">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-6.5 8-6.5s8 2.5 8 6.5"/></svg>
+      我的
+    </div>
+  </nav>
+
+  <div id="toast"></div>
+  <div id="modal"></div>
+  <div id="intro" style="display:none"></div>
+</div>
+
+<script>
+const ME = "焦树欣";
+const KEY = "eqdemo_v1";
+
+const CATS = [
+  { key: "all", name: "全部" },
+  { key: "tool", name: "工具器材" },
+  { key: "lab", name: "实验仪器" },
+  { key: "vehicle", name: "车辆" },
+];
+
+const SLOT_NAMES = ["9:00–11:00", "11:00–13:00", "14:00–16:00", "16:00–18:00"];
+
+function d(offset) {
+  const t = new Date();
+  t.setDate(t.getDate() + offset);
+  return t;
+}
+function iso(t) {
+  const y = t.getFullYear();
+  const m = String(t.getMonth() + 1).padStart(2, "0");
+  const dd = String(t.getDate()).padStart(2, "0");
+  return y + "-" + m + "-" + dd;
+}
+function md(isoStr) {
+  const p = isoStr.split("-");
+  return parseInt(p[1], 10) + "/" + parseInt(p[2], 10);
+}
+
+function seed() {
+  const t0 = iso(d(0)), t1 = iso(d(1)), t2 = iso(d(2));
+  return {
+    devices: [
+      // ---- 借还型：工具 ----
+      { id: 1, name: "红外测温枪", code: "FLK-001", cat: "tool", type: "borrow", status: "in" },
+      { id: 2, name: "数字万用表", code: "FLK-002", cat: "tool", type: "borrow", status: "in" },
+      { id: 3, name: "激光测距仪", code: "BOS-100", cat: "tool", type: "borrow", status: "out", borrower: "张伟", due: t2 },
+      { id: 4, name: "扭矩扳手", code: "NOR-30", cat: "tool", type: "borrow", status: "out", borrower: "王工", due: iso(d(-1)) },
+      { id: 5, name: "钳形电流表", code: "FLK-320", cat: "tool", type: "borrow", status: "in" },
+      { id: 6, name: "对讲机（4 台）", code: "MOT-4", cat: "tool", type: "borrow", status: "in" },
+      // ---- 借还型：车辆 ----
+      { id: 7, name: "工程皮卡", code: "冀B·A1234", cat: "vehicle", type: "borrow", status: "in" },
+      { id: 8, name: "商务车", code: "冀B·B8888", cat: "vehicle", type: "borrow", status: "out", borrower: "李主任", due: t1 },
+      // ---- 预约型：实验仪器 ----
+      {
+        id: 9, name: "场发射扫描电镜", code: "SEM-01", cat: "lab", type: "reserve",
+        desc: "样品形貌、成分组成、微观组织观察",
+        booked: { [t0]: { 0: "李工", 2: "赵工" }, [t1]: { 1: "王工" }, [t2]: {} },
+      },
+      {
+        id: 10, name: "钨灯丝扫描电镜", code: "SEM-02", cat: "lab", type: "reserve",
+        desc: "晶体结构、电子结构等形貌观察",
+        booked: { [t0]: { 3: "张伟" }, [t1]: {}, [t2]: { 0: "李工" } },
+      },
+      {
+        id: 11, name: "电子探针", code: "EPMA-01", cat: "lab", type: "reserve",
+        desc: "微米级区域的化学组成定性定量分析",
+        booked: { [t0]: { 1: "赵工" }, [t1]: { 2: "李工", 3: "王工" }, [t2]: {} },
+      },
+      {
+        id: 12, name: "金相显微镜", code: "OM-03", cat: "lab", type: "reserve",
+        desc: "金属材料组织观察与拍照",
+        booked: { [t0]: {}, [t1]: {}, [t2]: {} },
+      },
+    ],
+    resevations: [], // 我的预约：{ deviceId, date, slot }
+    cat: "all",
+    tab: "home",
+    seenIntro: false,
+  };
+}
+
+let S = load();
+function load() {
+  try {
+    const raw = localStorage.getItem(KEY);
+    if (raw) return JSON.parse(raw);
+  } catch (e) {}
+  return seed();
+}
+function save() { localStorage.setItem(KEY, JSON.stringify(S)); }
+
+function toast(msg) {
+  const el = document.getElementById("toast");
+  el.textContent = msg;
+  el.classList.add("show");
+  clearTimeout(el._t);
+  el._t = setTimeout(() => el.classList.remove("show"), 1800);
+}
+
+/* ---------- 渲染 ---------- */
+function renderCats() {
+  const box = document.getElementById("cats");
+  box.innerHTML = CATS.map((c) =>
+    `<button class="cat ${S.cat === c.key ? "active" : ""}" data-cat="${c.key}">${c.name}</button>`
+  ).join("");
+  box.querySelectorAll(".cat").forEach((b) =>
+    b.addEventListener("click", () => { S.cat = b.dataset.cat; save(); render(); })
+  );
+}
+
+function deviceCard(dv) {
+  if (dv.type === "borrow") {
+    const over = dv.status === "out" && dv.due < iso(d(0));
+    const chip = dv.status === "in"
+      ? '<span class="chip in">在库</span>'
+      : over ? '<span class="chip over">超期</span>' : '<span class="chip out">借出</span>';
+    const info = dv.status === "out"
+      ? `<div class="meta"><b>${dv.borrower}</b> 借走 · 应还 ${md(dv.due)}</div>`
+      : `<div class="meta">${dv.code ? '编号 ' + dv.code : '无编号'}</div>`;
+    return `<div class="card ${over ? "overdue" : ""}">
+      <div class="card-main">
+        <div class="row1"><span class="name">${dv.name}</span>${chip}</div>
+        ${info}
+      </div>
+      <button class="btn" data-borrow="${dv.id}" ${dv.status === "out" ? "disabled" : ""}>${dv.status === "in" ? "借走" : "借出中"}</button>
+    </div>`;
+  }
+  // 预约型
+  const todayBooked = (dv.booked[iso(d(0))] || {});
+  const left = SLOT_NAMES.length - Object.keys(todayBooked).length;
+  return `<div class="card">
+    <div class="card-main">
+      <div class="row1"><span class="name">${dv.name}</span><span class="chip ok">可预约</span></div>
+      <div class="desc">${dv.desc}</div>
+      <div class="meta">今日剩余 <b>${left}</b> 个时段</div>
+    </div>
+    <button class="btn" data-reserve="${dv.id}">预约</button>
+  </div>`;
+}
+
+function renderList() {
+  const list = document.getElementById("list");
+  if (S.tab === "mine") return renderMine(list);
+
+  const items = S.devices.filter((dv) => S.cat === "all" || dv.cat === S.cat);
+  list.innerHTML = items.length
+    ? items.map(deviceCard).join("")
+    : `<div class="empty">这个分类下还没有设备<br>（演示版只有示例数据）</div>`;
+
+  list.querySelectorAll("[data-borrow]").forEach((b) =>
+    b.addEventListener("click", () => openBorrow(Number(b.dataset.borrow)))
+  );
+  list.querySelectorAll("[data-reserve]").forEach((b) =>
+    b.addEventListener("click", () => openReserve(Number(b.dataset.reserve)))
+  );
+}
+
+function renderMine(list) {
+  const borrowed = S.devices.filter((dv) => dv.type === "borrow" && dv.status === "out" && dv.borrower === ME);
+  const reserved = S.resevations.map((r) => {
+    const dv = S.devices.find((x) => x.id === r.deviceId);
+    return { ...r, name: dv ? dv.name : "已删除设备" };
+  });
+
+  let html = "";
+  html += `<div class="sec-title">我借走的设备</div>`;
+  html += borrowed.length
+    ? borrowed.map((dv) => {
+        const over = dv.due < iso(d(0));
+        return `<div class="card ${over ? "overdue" : ""}">
+          <div class="card-main">
+            <div class="row1"><span class="name">${dv.name}</span>${over ? '<span class="chip over">已超期</span>' : '<span class="chip out">借出中</span>'}</div>
+            <div class="meta">应还 ${md(dv.due)}${over ? " · 请尽快归还" : ""}</div>
+          </div>
+          <button class="btn ghost" data-return="${dv.id}">归还</button>
+        </div>`;
+      }).join("")
+    : `<div class="empty" style="padding:24px">还没有借走的设备</div>`;
+
+  html += `<div class="sec-title">我的预约</div>`;
+  html += reserved.length
+    ? reserved.map((r) => `<div class="card">
+        <div class="card-main">
+          <div class="row1"><span class="name">${r.name}</span><span class="chip ok">已预约</span></div>
+          <div class="meta">${md(r.date)} · ${SLOT_NAMES[r.slot]}</div>
+        </div>
+        <button class="btn ghost" data-cancel="${r.deviceId}:${r.date}:${r.slot}">取消</button>
+      </div>`).join("")
+    : `<div class="empty" style="padding:24px">还没有预约</div>`;
+
+  html += `<div class="reset-wrap"><button class="btn ghost" id="resetBtn">重置演示数据</button></div>`;
+
+  list.innerHTML = html;
+
+  list.querySelectorAll("[data-return]").forEach((b) =>
+    b.addEventListener("click", () => {
+      const dv = S.devices.find((x) => x.id === Number(b.dataset.return));
+      dv.status = "in"; delete dv.borrower; delete dv.due;
+      save(); render();
+      toast("已归还：" + dv.name);
+    })
+  );
+  list.querySelectorAll("[data-cancel]").forEach((b) =>
+    b.addEventListener("click", () => {
+      const [id, date, slot] = b.dataset.cancel.split(":");
+      S.resevations = S.resevations.filter(
+        (r) => !(r.deviceId === Number(id) && r.date === date && r.slot === Number(slot))
+      );
+      const dv = S.devices.find((x) => x.id === Number(id));
+      if (dv && dv.booked[date]) delete dv.booked[date][slot];
+      save(); render();
+      toast("已取消预约");
+    })
+  );
+  document.getElementById("resetBtn").addEventListener("click", () => {
+    if (confirm("确定重置所有演示数据吗？")) {
+      localStorage.removeItem(KEY);
+      S = seed(); S.seenIntro = true; save(); render();
+      toast("已重置");
+    }
+  });
+}
+
+function render() {
+  renderCats();
+  document.getElementById("cats").style.display = S.tab === "mine" ? "none" : "flex";
+  renderList();
+  document.querySelectorAll(".tab").forEach((t) =>
+    t.classList.toggle("active", t.dataset.tab === S.tab)
+  );
+}
+
+/* ---------- 借用弹窗 ---------- */
+function openBorrow(id) {
+  const dv = S.devices.find((x) => x.id === id);
+  if (!dv || dv.status !== "in") return;
+  const def = iso(d(3));
+  showModal(`
+    <div class="sheet">
+      <h3>借用登记</h3>
+      <p class="sub">${dv.name}${dv.code ? " · " + dv.code : ""}</p>
+      <div class="field"><label>借用人</label><input id="fWho" value="${ME}"></div>
+      <div class="field"><label>预计归还日期</label><input id="fDue" type="date" value="${def}"></div>
+      <div class="field"><label>备注（选填）</label><input id="fNote" placeholder="用途、去向等"></div>
+      <div class="sheet-actions">
+        <button class="btn ghost" id="cancelBtn">取消</button>
+        <button class="btn primary" id="okBtn">确认借出</button>
+      </div>
+    </div>`);
+  document.getElementById("cancelBtn").onclick = closeModal;
+  document.getElementById("okBtn").onclick = () => {
+    const who = document.getElementById("fWho").value.trim() || ME;
+    const due = document.getElementById("fDue").value || def;
+    dv.status = "out"; dv.borrower = who; dv.due = due;
+    save(); closeModal(); render();
+    toast("已借出：" + dv.name);
+  };
+}
+
+/* ---------- 预约弹窗 ---------- */
+function openReserve(id) {
+  const dv = S.devices.find((x) => x.id === id);
+  if (!dv) return;
+  const days = [d(0), d(1), d(2)].map(iso);
+  let selDate = days[0], selSlot = null;
+
+  function slotsHtml() {
+    const booked = dv.booked[selDate] || {};
+    return SLOT_NAMES.map((nm, i) => {
+      if (booked[i] !== undefined) return `<button class="pick taken">${nm} 已占</button>`;
+      return `<button class="pick ${selSlot === i ? "sel" : ""}" data-slot="${i}">${nm}</button>`;
+    }).join("");
+  }
+  function daysHtml() {
+    return days.map((dt) => {
+      const dt2 = new Date(dt + "T00:00:00");
+      const label = dt2.getMonth() + 1 + "/" + dt2.getDate();
+      return `<button class="pick ${selDate === dt ? "sel" : ""}" data-day="${dt}">${label}</button>`;
+    }).join("");
+  }
+
+  function paint() {
+    showModal(`
+      <div class="sheet">
+        <h3>预约使用</h3>
+        <p class="sub">${dv.name} · ${dv.desc}</p>
+        <div class="field"><label>选择日期</label><div class="chips">${daysHtml()}</div></div>
+        <div class="field"><label>选择时段</label><div class="chips">${slotsHtml()}</div></div>
+        <div class="field"><label>使用人</label><input id="fWho2" value="${ME}"></div>
+        <div class="sheet-actions">
+          <button class="btn ghost" id="cancelBtn">取消</button>
+          <button class="btn primary" id="okBtn" ${selSlot === null ? "disabled" : ""}>确认预约</button>
+        </div>
+      </div>`);
+    document.getElementById("cancelBtn").onclick = closeModal;
+    document.querySelectorAll("[data-day]").forEach((b) =>
+      b.onclick = () => { selDate = b.dataset.day; selSlot = null; paint(); }
+    );
+    document.querySelectorAll("[data-slot]").forEach((b) =>
+      b.onclick = () => { selSlot = Number(b.dataset.slot); paint(); }
+    );
+    document.getElementById("okBtn").onclick = () => {
+      if (selSlot === null) return;
+      if (!dv.booked[selDate]) dv.booked[selDate] = {};
+      dv.booked[selDate][selSlot] = ME;
+      S.resevations.push({ deviceId: dv.id, date: selDate, slot: selSlot });
+      save(); closeModal(); render();
+      toast("预约成功：" + md(selDate) + " " + SLOT_NAMES[selSlot]);
+    };
+  }
+  paint();
+}
+
+/* ---------- 通用 ---------- */
+function showModal(html) {
+  const m = document.getElementById("modal");
+  m.innerHTML = `<div class="mask"><div style="width:100%;max-width:480px">${html}</div></div>`;
+  m.querySelector(".mask").addEventListener("click", (e) => {
+    if (e.target.classList.contains("mask")) closeModal();
+  });
+}
+function closeModal() { document.getElementById("modal").innerHTML = ""; }
+
+function showIntro() {
+  const box = document.getElementById("intro");
+  box.style.display = "block";
+  box.innerHTML = `<div class="mask center">
+    <div class="intro-card">
+      <h2>这是演示版</h2>
+      <p>页面上的设备都是假数据，你可以随便借、随便约，点乱了在「我的」页面一键重置。</p>
+      <p>请重点体验下面两种模式的差别：</p>
+      <div class="two">
+        <div><b>借走 / 归还</b> —— 工具、车辆，拿走用，用完还回来</div>
+        <div style="margin-top:6px"><b>预约时段</b> —— 实验仪器，放在原地，约个时间来用</div>
+      </div>
+      <button class="btn primary" id="introOk">开始体验</button>
+    </div>
+  </div>`;
+  document.getElementById("introOk").onclick = () => {
+    box.style.display = "none";
+    S.seenIntro = true; save();
+  };
+}
+
+/* ---------- 启动 ---------- */
+document.querySelectorAll(".tab").forEach((t) =>
+  t.addEventListener("click", () => { S.tab = t.dataset.tab; save(); render(); })
+);
+render();
+if (!S.seenIntro) showIntro();
+</script>
+</body>
+</html>
